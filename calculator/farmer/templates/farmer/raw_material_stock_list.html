@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <h2>Сырье на складе</h2>
+        <div class="search-container">
+            <input type="text" id="rawMaterialSearch" onkeyup="searchTable('rawMaterialSearch', 'rawMaterialTable')" placeholder="Поиск сырья...">
+        </div>
+        <div class="scrollable-table">
+            <table id="rawMaterialTable">
+                <thead>
+                    <tr>
+                        <th>Название сырья</th>
+                        <th>Количество</th>
+                        <th>Склад</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for raw_material in raw_materials %}
+                    <tr>
+                        <td>{{ raw_material.name }}</td>
+                        <td>{{ raw_material.quantity }}</td>
+                        <td>{{ raw_material.stok_id.name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load dictionary_tags %}
+
+
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <h2>Результаты расчёта производственного плана для заказа {{ orders.0.Order_id }}</h2>
+
+        <h3>Результаты</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Продукт</th>
+                    <th>Возможность производства</th>
+                    <th>Детали</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.product_code.name }}</td>
+                    <td>
+                        {% with possibility=production_possibility|get_item:order.product_code.name %}
+                            {% if 'Недостаточно сырья' in possibility or 'Производственный отдел не сможет уложиться' in possibility %}
+                                Невозможно
+                            {% else %}
+                                Возможно
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td>{{ production_possibility|get_item:order.product_code.name }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="post" action="{% url 'farmer:save_production_plan' orders.0.Order_id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Сохранить план и создать документы</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+ {% block content %}
+        <!-- Содержимое блока content -->
+        <div class="row center-xs">
+            <div class="col-xs-6">
+                <h2>Импорт заявок от менеджеров</h2>
+                <form id="import-form" action="{% url 'farmer:import_management_orders' %}" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="file" name="json_file" accept=".txt, .json" required>
+                    <button type="submit" class="btn">Загрузить</button>
+                    <div id="form-response"></div> <!-- Элемент для вывода ответа -->
+                </form>
+            </div>
+        </div>
+
+<script>
+document.getElementById('import-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var formResponse = document.getElementById('form-response');
+    var formData = new FormData(this);
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    }).then(response => response.json())
+      .then(data => {
+          formResponse.style.display = 'block'; // Показать элемент ответа
+          if (data.success) {
+              formResponse.className = 'alert alert-success'; // Класс для успешного сообщения
+              formResponse.innerText = data.success;
+          } else {
+              formResponse.className = 'alert alert-danger'; // Класс для сообщения об ошибке
+              formResponse.innerText = data.error;
+          }
+      }).catch(error => {
+          console.error('Ошибка:', error);
+          formResponse.className = 'alert alert-danger';
+          formResponse.innerText = 'Произошла ошибка при отправке формы.';
+          formResponse.style.display = 'block';
+      });
+});
+</script>
+
+{% endblock %}

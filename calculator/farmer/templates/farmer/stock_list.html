@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <h2>Склады</h2>
+        <div class="search-container">
+            <input type="text" id="stockSearch" onkeyup="searchTable('stockSearch', 'stockTable')" placeholder="Поиск склада...">
+        </div>
+        <div class="scrollable-table">
+            <table id="stockTable">
+                <thead>
+                    <tr>
+                        <th>Название склада</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stocks %}
+                    <tr>
+                        <td>{{ stock.name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

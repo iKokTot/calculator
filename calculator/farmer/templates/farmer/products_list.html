@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <h2>Продукция</h2>
+        <div class="search-container">
+            <input type="text" id="productSearch" onkeyup="searchTable('productSearch', 'productTable')" placeholder="Поиск продукции...">
+        </div>
+        <div class="scrollable-table">
+            <table id="productTable">
+                <thead>
+                    <tr>
+                        <th>Название продукции</th>
+                        <th>Производственный отдел</th>
+                        <th>Активность</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.production_department.name }}</td>
+                        <td>{{ product.is_active|yesno:"Да,Нет" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

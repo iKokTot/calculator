@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <h2>Производственные отделы</h2>
+        <div class="search-container">
+            <input type="text" id="departmentSearch" onkeyup="searchTable('departmentSearch', 'departmentTable')" placeholder="Поиск отдела...">
+        </div>
+        <div class="scrollable-table">
+            <table id="departmentTable">
+                <thead>
+                    <tr>
+                        <th>Название</th>
+                        <th>Тип продуктов</th>
+                        <th>Среднее количество</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for department in departments %}
+                    <tr>
+                        <td>{{ department.name }}</td>
+                        <td>{{ department.product_type }}</td>
+                        <td>{{ department.average_output }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

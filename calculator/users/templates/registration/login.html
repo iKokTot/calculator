@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-6">
+        <div>
+        <h1 style="font-family: 'Roboto', sans-serif; text-align: center;">Авторизация</h1>
+
+            <form method="post" class="box ">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <p><button type="submit" class="btn">Войти</button></p>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+
+</style>
+{% endblock %}

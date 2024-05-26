@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-6">
+        <div class="btn">
+            <a href="{% url 'farmer:production_departments_list' %}" >Производственные отделы</a>
+        </div>
+        <div class="btn">
+            <a href="{% url 'farmer:products_list' %}" >Продукция</a>
+        </div>
+        <div class="btn">
+            <a href="{% url 'farmer:raw_material_stock_list' %}" >Сырье на складе</a>
+        </div>
+        <div class="btn">
+            <a href="{% url 'farmer:stock_list' %}" >Склады</a>
+        </div>
+        <div class="btn">
+            <a href="{% url 'farmer:recipes_list' %}" >Рецепты</a>
+        </div>
+        <div class="btn">
+            <a href="{% url 'farmer:production_plans_list' %}" >Производственные планы</a>
+        </div>
+        <div class="btn">
+            <a href="{% url 'farmer:orders_list' %}" >Заявки</a>
+        </div>
+        <div class="btn">
+            <a href="{% url 'farmer:show_import_form' %}" >Калькулятор</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

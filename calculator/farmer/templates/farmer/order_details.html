@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <h2>Детали заказа {{ order_id }}</h2>
+        <div class="search-container">
+            <input type="text" id="orderDetailsSearch" onkeyup="searchTable('orderDetailsSearch', 'orderDetailsTable')" placeholder="Поиск по заказу...">
+        </div>
+        <div class="scrollable-table">
+            <table id="orderDetailsTable">
+                <thead>
+                    <tr>
+                        <th>Название продукции</th>
+                        <th>Рецепт</th>
+                        <th>Дата начала</th>
+                        <th>Дата окончания</th>
+                        <th>Количество</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order.product_code.name }}</td>
+                        <td>
+                            <ul>
+                            {% for recipe in recipes %}
+                                {% if recipe.product == order.product_code %}
+                                <li>{{ recipe.raw_material.name }}: {{ recipe.required_quantity }}</li>
+                                {% endif %}
+                            {% endfor %}
+                            </ul>
+                        </td>
+                        <td>{{ order.start_date }}</td>
+                        <td>{{ order.end_date }}</td>
+                        <td>{{ order.quantity }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Кнопка для перехода на форму расчётов -->
+        <form action="{% url 'farmer:calculate_plan' order_id %}" method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn">Рассчитать план</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+

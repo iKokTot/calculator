@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <h2>Рецепты</h2>
+        <div class="search-container">
+            <input type="text" id="recipeSearch" onkeyup="searchTable('recipeSearch', 'recipeTable')" placeholder="Поиск рецепта...">
+        </div>
+        <div class="scrollable-table">
+            <table id="recipeTable">
+                <thead>
+                    <tr>
+                        <th>Продукт</th>
+                        <th>Сырье</th>
+                        <th>Необходимое количество</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for recipe in recipes %}
+                    <tr>
+                        <td>{{ recipe.product.name }}</td>
+                        <td>{{ recipe.raw_material.name }}</td>
+                        <td>{{ recipe.required_quantity }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+
+
+{% extends 'base.html' %}
+
+{% block content %}
+        <div class="row end-xs ">
+            <div class="col-xs-3 btn">
+                <div >
+                    <a href="{% url 'farmer:show_import_form' %}" >Импорт заявок</a>
+                </div>
+            </div>
+        </div>
+
+<div class="row center-xs">
+    <div class="col-xs-12">
+        <div>
+            <h2>Список заявок</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Код заказа</th>
+                        <th>Количество заявок</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order.Order_id }}</td>
+                        <td>{{ order.total }}</td>
+                        <td>
+                            <a href="{% url 'farmer:order_details' order.Order_id %}">Подробнее</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
