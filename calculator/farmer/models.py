@@ -26,7 +26,7 @@ class Product(models.Model):  # Продукция
 
 class ManagementOrder(models.Model):   # Заявки от менеджеров
     # Код заказа
-    Order_id = models.CharField(max_length=100)  # код продукции
+    Order_id = models.CharField(max_length=100)  # код
     # Код продукции
     product_code = models.ForeignKey(Product, on_delete=models.CASCADE)  # продукт
     # Дата начала производства

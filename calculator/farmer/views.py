@@ -1,4 +1,9 @@
 import json
+from datetime import datetime, timedelta
+from itertools import groupby
+from operator import attrgetter
+
+from django.utils.dateformat import DateFormat
 from docx import Document
 from django.db.models import Count
 from django.http import JsonResponse, HttpResponse
@@ -68,7 +73,8 @@ def show_import_form(request):
 
 def calculate_production_plan(request, order_id):
     # Получаем все заявки с данным order_id
-    orders = ManagementOrder.objects.filter(Order_id=order_id).select_related('product_code', 'product_code__production_department')
+    orders = ManagementOrder.objects.filter(Order_id=order_id).select_related('product_code',
+                                                                              'product_code__production_department')
 
     # Словарь для хранения общего необходимого количества каждого сырья
     total_required_materials = defaultdict(int)
@@ -86,7 +92,6 @@ def calculate_production_plan(request, order_id):
     with transaction.atomic():
         # Словарь для хранения информации о возможности производства для каждого заказа
         production_possibility = {}
-        materials_shortage = {}
         raw_materials_stock = RawMaterialStock.objects.filter(name__in=total_required_materials.keys())
         stock_dict = {stock.name: stock.quantity for stock in raw_materials_stock}
 
@@ -117,13 +122,31 @@ def calculate_production_plan(request, order_id):
                 monthly_output = production_department.average_output
                 required_months = required_quantity / monthly_output
 
-                if production_time < required_months * 30:
-                    delay = (required_months * 30) - production_time
-                    production_possibility[product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
+                # Определяем текущую загруженность производства
+                overlapping_orders = ProductionPlan.objects.filter(
+                    product__production_department=production_department,
+                    order__end_date__gte=order.start_date,
+                    order__start_date__lte=order.end_date
+                )
+
+                current_load = 0
+                for overlapping_order in overlapping_orders:
+                    overlap_days = (min(overlapping_order.order.end_date, order.end_date) - max(
+                        overlapping_order.order.start_date, order.start_date)).days
+                    overlap_months = overlap_days / 30
+                    current_load += overlapping_order.planned_quantity / overlap_months
+
+                available_capacity = monthly_output - current_load
+                if required_quantity > available_capacity * required_months:
+                    delay = (required_quantity / available_capacity) - required_months
+                    production_possibility[
+                        product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
                 else:
-                    production_possibility[product.name] = f"Можно произвести {required_quantity} единиц за {required_months:.2f} месяцев"
+                    production_possibility[
+                        product.name] = f"Можно произвести {required_quantity} единиц за {required_months:.2f} месяцев"
             else:
-                shortage_info = ', '.join([f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
+                shortage_info = ', '.join(
+                    [f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
                 production_possibility[product.name] = f"Недостаточно сырья: {shortage_info}"
 
     # Отображаем результаты расчёта
@@ -139,7 +162,8 @@ def success_page(request):
 def save_production_plan(request, order_id):
     if request.method == 'POST':
         # Получаем все заявки с данным order_id
-        orders = ManagementOrder.objects.filter(Order_id=order_id).select_related('product_code', 'product_code__production_department')
+        orders = ManagementOrder.objects.filter(Order_id=order_id).select_related('product_code',
+                                                                                  'product_code__production_department')
 
         # Словарь для хранения информации о возможности производства для каждого заказа
         production_possibility = {}
@@ -156,7 +180,7 @@ def save_production_plan(request, order_id):
                 total_required_materials[recipe.raw_material.name] += recipe.required_quantity * required_quantity
 
         raw_materials_stock = RawMaterialStock.objects.filter(name__in=total_required_materials.keys())
-        stock_dict = {stock.name: stock.quantity for stock in raw_materials_stock}
+        stock_dict = {stock.name: stock for stock in raw_materials_stock}
 
         for order in orders:
             product = order.product_code
@@ -168,13 +192,13 @@ def save_production_plan(request, order_id):
             for recipe in recipes:
                 material_name = recipe.raw_material.name
                 required_amount = recipe.required_quantity * required_quantity
-                available_quantity = stock_dict.get(material_name, 0)
+                available_quantity = stock_dict[material_name].quantity
 
                 if available_quantity < required_amount:
                     shortages[material_name] = required_amount - available_quantity
                     sufficient_resources = False
                 else:
-                    stock_dict[material_name] -= required_amount
+                    stock_dict[material_name].quantity -= required_amount
 
             if sufficient_resources:
                 production_department = product.production_department
@@ -184,15 +208,24 @@ def save_production_plan(request, order_id):
 
                 if production_time < required_months * 30:
                     delay = (required_months * 30) - production_time
-                    production_possibility[product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
-                    manager_report.append((product.name, f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"))
+                    production_possibility[
+                        product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
+                    manager_report.append((product.name,
+                                           f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"))
                 else:
-                    production_possibility[product.name] = f"Можно произвести {required_quantity} единиц за {required_months:.2f} месяцев"
-                    production_plans.append(ProductionPlan(order=order, product=product, planned_quantity=required_quantity))
+                    production_possibility[
+                        product.name] = f"Можно произвести {required_quantity} единиц за {required_months:.2f} месяцев"
+                    production_plans.append(
+                        ProductionPlan(order=order, product=product, planned_quantity=required_quantity))
             else:
-                shortage_info = ', '.join([f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
+                shortage_info = ', '.join(
+                    [f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
                 production_possibility[product.name] = f"Недостаточно сырья: {shortage_info}"
                 manager_report.append((product.name, f"Недостаточно сырья: {shortage_info}"))
+
+        # Обновляем количество сырья на складе
+        for stock in stock_dict.values():
+            stock.save()
 
         # Сохраняем производственный план в базе данных
         ProductionPlan.objects.bulk_create(production_plans)
@@ -254,6 +287,41 @@ class ProductionDepartmentsListView(ListView):
     template_name = 'farmer/production_departments_list.html'
     context_object_name = 'departments'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Допустим, у нас есть данные о производственных заказах
+        orders = ManagementOrder.objects.all().select_related('product_code__production_department')
+
+        # Группируем заказы по производственным отделам
+        departments = ProductionDepartment.objects.all()
+        load_data = []
+        for department in departments:
+            department_orders = []
+            for order in orders:
+                if order.product_code.production_department == department:
+                    department_orders.append({
+                        'order_id': order.Order_id,
+                        'product': order.product_code.name,
+                        'start_date': order.start_date.strftime('%Y-%m-%d'),
+                        'end_date': order.end_date.strftime('%Y-%m-%d'),
+                        'quantity': order.quantity,
+                        'monthly_output': department.average_output
+                    })
+            load_data.append({
+                'department': department.name,
+                'load': department_orders
+            })
+
+        # Определяем временной интервал для оси X (1 месяц до текущей даты и 1 месяц после)
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+
+        context['load_data'] = load_data
+        context['start_date'] = start_date
+        context['end_date'] = end_date
+        return context
+
 class ProductsListView(ListView):
     model = Product
     template_name = 'farmer/products_list.html'
@@ -278,3 +346,11 @@ class ProductionPlansListView(ListView):
     model = ProductionPlan
     template_name = 'farmer/production_plans_list.html'
     context_object_name = 'plans'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        plans = self.get_queryset().select_related('order', 'product').order_by('order__Order_id')
+        grouped_plans = groupby(plans, key=attrgetter('order'))
+        grouped_plans_list = [(order, list(plans)) for order, plans in grouped_plans]
+        context['grouped_plans'] = grouped_plans_list
+        return context
