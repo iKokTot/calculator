@@ -6,10 +6,14 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy, reverse
 from django.views import View
+from django import forms
 
+class StyledAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
 
 class LoginUser(LoginView):
-    form_class = AuthenticationForm
+    form_class = StyledAuthenticationForm
     template_name = 'users/login.html'
     extra_context = {'title': "Авторизация"}
 

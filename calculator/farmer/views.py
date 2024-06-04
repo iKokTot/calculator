@@ -1,14 +1,20 @@
 import json
+import random
 from datetime import datetime, timedelta
 from itertools import groupby
 from operator import attrgetter
 
+from django.contrib import messages
 from django.utils.dateformat import DateFormat
+from django.utils.timezone import make_aware, is_naive
+from django.views import View
 from docx import Document
 from django.db.models import Count
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
-from django.views.generic import ListView
+from django.views.generic import ListView, TemplateView
+
+from .forms import ProductionPlanForm
 from .models import ProductionDepartment, Product, RawMaterialStock, Stock, Recipe, ProductionPlan, ManagementOrder
 from django.shortcuts import render, get_object_or_404,redirect
 from django.core.exceptions import ValidationError
@@ -18,6 +24,9 @@ from collections import defaultdict
 import os
 import tempfile
 from zipfile import ZipFile
+import logging
+
+logger = logging.getLogger(__name__)
 
 @require_POST
 def import_management_orders(request):
@@ -71,6 +80,232 @@ def show_import_form(request):
     return render(request, 'farmer/import.html')
 
 
+class MultiProductProductionPlanView(TemplateView):
+    template_name = 'farmer/multi_product_production_plan.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Получаем все продукты
+        products = Product.objects.all()
+        context['products'] = products
+
+        if self.request.method == 'POST':
+            # Получаем список продуктов и их параметры из POST-запроса
+            products_ids = self.request.POST.getlist('product')
+            start_dates = self.request.POST.getlist('start_date')
+            end_dates = self.request.POST.getlist('end_date')
+            quantities = self.request.POST.getlist('quantity')
+
+            # Словарь для хранения общего необходимого количества каждого сырья
+            total_required_materials = defaultdict(int)
+
+            orders = []
+            for i, product_id in enumerate(products_ids):
+                product = Product.objects.get(id=product_id)
+                required_quantity = int(quantities[i])
+                start_date = datetime.strptime(start_dates[i], '%Y-%m-%d')
+                end_date = datetime.strptime(end_dates[i], '%Y-%m-%d')
+
+                order = {
+                    'product': product,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'quantity': required_quantity
+                }
+                orders.append(order)
+
+                recipes = Recipe.objects.filter(product=product)
+                for recipe in recipes:
+                    total_required_materials[recipe.raw_material.name] += recipe.required_quantity * required_quantity
+
+            # Используем транзакцию для проверки наличия сырья и возможных операций с базой данных
+            with transaction.atomic():
+                # Словарь для хранения информации о возможности производства для каждого заказа
+                production_possibility = {}
+                raw_materials_stock = RawMaterialStock.objects.filter(name__in=total_required_materials.keys())
+                stock_dict = {stock.name: stock.quantity for stock in raw_materials_stock}
+
+                # Проверяем наличие сырья на складе и корректируем остатки по мере использования
+                for order in orders:
+                    product = order['product']
+                    required_quantity = order['quantity']
+                    recipes = Recipe.objects.filter(product=product)
+                    sufficient_resources = True
+                    shortages = {}
+
+                    for recipe in recipes:
+                        material_name = recipe.raw_material.name
+                        required_amount = recipe.required_quantity * required_quantity
+                        available_quantity = stock_dict.get(material_name, 0)
+
+                        if available_quantity < required_amount:
+                            shortages[material_name] = required_amount - available_quantity
+                            sufficient_resources = False
+                        else:
+                            # Временно вычитаем необходимое количество из доступного
+                            stock_dict[material_name] -= required_amount
+
+                    # Проверяем возможность выполнения заказов
+                    if sufficient_resources:
+                        production_department = product.production_department
+                        monthly_output = production_department.average_output
+
+                        # Определяем текущую загруженность производства
+                        overlapping_orders = ProductionPlan.objects.filter(
+                            product__production_department=production_department,
+                            order__end_date__gte=order['start_date'],
+                            order__start_date__lte=order['end_date']
+                        )
+
+                        current_load = 0
+                        for overlapping_order in overlapping_orders:
+                            overlapping_order_start = overlapping_order.order.start_date
+                            if isinstance(overlapping_order_start, datetime):
+                                overlapping_order_start = overlapping_order_start.date()
+                            overlapping_order_end = overlapping_order.order.end_date
+                            if isinstance(overlapping_order_end, datetime):
+                                overlapping_order_end = overlapping_order_end.date()
+                            order_start = order['start_date'].date() if isinstance(order['start_date'], datetime) else \
+                            order['start_date']
+                            order_end = order['end_date'].date() if isinstance(order['end_date'], datetime) else order[
+                                'end_date']
+
+                            overlap_days = (min(overlapping_order_end, order_end) - max(
+                                overlapping_order_start, order_start)).days
+                            if overlap_days > 0:
+                                overlap_months = overlap_days / 30
+                                current_load += overlapping_order.planned_quantity / overlap_months
+
+                        available_capacity = monthly_output - current_load
+                        required_months = required_quantity / monthly_output
+
+                        if available_capacity <= 0 or required_quantity > available_capacity * required_months:
+                            delay = (
+                                                required_quantity / available_capacity) - required_months if available_capacity > 0 else required_months
+                            if delay > 0.01:  # Установим порог для задержки
+                                production_possibility[
+                                    product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
+                            else:
+                                production_possibility[
+                                    product.name] = f"Можно произвести {required_quantity} кг за {required_months:.2f} месяцев"
+                        else:
+                            production_possibility[
+                                product.name] = f"Можно произвести {required_quantity} кг за {required_months:.2f} месяцев"
+                    else:
+                        shortage_info = ', '.join(
+                            [f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
+                        production_possibility[product.name] = f"Недостаточно сырья: {shortage_info}"
+
+            # Отображаем результаты расчёта
+            context['orders'] = orders
+            context['production_possibility'] = production_possibility
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+
+def calculate_multi_product_production_plan(request):
+    if request.method == 'POST':
+        products = request.POST.getlist('products')
+        start_dates = request.POST.getlist('start_dates')
+        end_dates = request.POST.getlist('end_dates')
+        quantities = request.POST.getlist('quantities')
+
+        orders = []
+        for product, start_date, end_date, quantity in zip(products, start_dates, end_dates, quantities):
+            orders.append({
+                'product_id': int(product),
+                'start_date': datetime.strptime(start_date, '%Y-%m-%d'),
+                'end_date': datetime.strptime(end_date, '%Y-%m-%d'),
+                'quantity': int(quantity)
+            })
+
+        production_possibility = calculate_production_possibility(orders)
+        context = {
+            'products': products,
+            'start_dates': start_dates,
+            'end_dates': end_dates,
+            'quantities': quantities,
+            'production_possibility': production_possibility,
+            'all_products': Product.objects.all(),  # Добавьте эту строку
+            'orders': orders  # Добавьте эту строку для передачи заказов в шаблон
+        }
+        return render(request, 'farmer/production_plan_form.html', context)
+
+
+def calculate_production_possibility(orders):
+    production_possibility = {}
+    total_required_materials = defaultdict(int)
+
+    for order in orders:
+        product = Product.objects.get(id=order['product_id'])
+        required_quantity = order['quantity']
+        recipes = Recipe.objects.filter(product=product)
+
+        for recipe in recipes:
+            total_required_materials[recipe.raw_material.name] += recipe.required_quantity * required_quantity
+
+    raw_materials_stock = RawMaterialStock.objects.filter(name__in=total_required_materials.keys())
+    stock_dict = {stock.name: stock for stock in raw_materials_stock}
+
+    for order in orders:
+        product = Product.objects.get(id=order['product_id'])
+        required_quantity = order['quantity']
+        recipes = Recipe.objects.filter(product=product)
+        sufficient_resources = True
+        shortages = {}
+
+        for recipe in recipes:
+            material_name = recipe.raw_material.name
+            required_amount = recipe.required_quantity * required_quantity
+            available_quantity = stock_dict[material_name].quantity
+
+            if available_quantity < required_amount:
+                shortages[material_name] = required_amount - available_quantity
+                sufficient_resources = False
+            else:
+                stock_dict[material_name].quantity -= required_amount
+
+        if sufficient_resources:
+            production_department = product.production_department
+            production_time = (order['end_date'] - order['start_date']).days
+            monthly_output = production_department.average_output
+            required_months = required_quantity / monthly_output
+
+            overlapping_orders = ProductionPlan.objects.filter(
+                product__production_department=production_department,
+                order__end_date__gte=datetime.combine(order['start_date'], datetime.min.time()),  # Преобразование в datetime.datetime
+                order__start_date__lte=datetime.combine(order['end_date'], datetime.min.time())  # Преобразование в datetime.datetime
+            )
+
+            current_load = 0
+            for overlapping_order in overlapping_orders:
+                overlap_days = (min(overlapping_order.order.end_date, order['end_date']) - max(
+                    overlapping_order.order.start_date, order['start_date'])).days
+                overlap_months = overlap_days / 30
+                current_load += overlapping_order.planned_quantity / overlap_months
+
+            available_capacity = monthly_output - current_load
+            if available_capacity <= 0 or required_quantity > available_capacity * required_months:
+                delay = (
+                    required_quantity / available_capacity) - required_months if available_capacity > 0 else required_months
+                if delay > 0:
+                    production_possibility[
+                        product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
+                else:
+                    production_possibility[
+                        product.name] = f"Можно произвести {required_quantity} единиц за {required_months:.2f} месяцев"
+        else:
+            shortage_info = ', '.join(
+                [f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
+            production_possibility[product.name] = f"Недостаточно сырья: {shortage_info}"
+
+    return production_possibility
+
+
 def calculate_production_plan(request, order_id):
     # Получаем все заявки с данным order_id
     orders = ManagementOrder.objects.filter(Order_id=order_id).select_related('product_code',
@@ -92,6 +327,7 @@ def calculate_production_plan(request, order_id):
     with transaction.atomic():
         # Словарь для хранения информации о возможности производства для каждого заказа
         production_possibility = {}
+        materials_shortage = {}
         raw_materials_stock = RawMaterialStock.objects.filter(name__in=total_required_materials.keys())
         stock_dict = {stock.name: stock.quantity for stock in raw_materials_stock}
 
@@ -122,23 +358,8 @@ def calculate_production_plan(request, order_id):
                 monthly_output = production_department.average_output
                 required_months = required_quantity / monthly_output
 
-                # Определяем текущую загруженность производства
-                overlapping_orders = ProductionPlan.objects.filter(
-                    product__production_department=production_department,
-                    order__end_date__gte=order.start_date,
-                    order__start_date__lte=order.end_date
-                )
-
-                current_load = 0
-                for overlapping_order in overlapping_orders:
-                    overlap_days = (min(overlapping_order.order.end_date, order.end_date) - max(
-                        overlapping_order.order.start_date, order.start_date)).days
-                    overlap_months = overlap_days / 30
-                    current_load += overlapping_order.planned_quantity / overlap_months
-
-                available_capacity = monthly_output - current_load
-                if required_quantity > available_capacity * required_months:
-                    delay = (required_quantity / available_capacity) - required_months
+                if production_time < required_months * 30:
+                    delay = (required_months * 30) - production_time
                     production_possibility[
                         product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
                 else:
@@ -156,8 +377,203 @@ def calculate_production_plan(request, order_id):
     }
     return render(request, 'farmer/production_plan.html', context)
 
+
 def success_page(request):
     return render(request, 'farmer/success_page.html')
+
+def save_multi_product_production_plan(request):
+    if request.method == 'POST':
+        products = request.POST.getlist('products')
+        start_dates = request.POST.getlist('start_dates')
+        end_dates = request.POST.getlist('end_dates')
+        quantities = request.POST.getlist('quantities')
+
+        orders = []
+        for product, start_date, end_date, quantity in zip(products, start_dates, end_dates, quantities):
+            orders.append({
+                'product_id': int(product),
+                'start_date': datetime.strptime(start_date, '%Y-%m-%d'),
+                'end_date': datetime.strptime(end_date, '%Y-%m-%d'),
+                'quantity': int(quantity)
+            })
+
+        production_plans = []
+        manager_report = []
+
+        total_required_materials = defaultdict(int)
+        for order in orders:
+            product = Product.objects.get(id=order['product_id'])
+            required_quantity = order['quantity']
+            recipes = Recipe.objects.filter(product=product)
+            for recipe in recipes:
+                total_required_materials[recipe.raw_material.name] += recipe.required_quantity * required_quantity
+
+        raw_materials_stock = RawMaterialStock.objects.filter(name__in=total_required_materials.keys())
+        stock_dict = {stock.name: stock for stock in raw_materials_stock}
+
+        for order in orders:
+            product = Product.objects.get(id=order['product_id'])
+            required_quantity = order['quantity']
+            recipes = Recipe.objects.filter(product=product)
+            sufficient_resources = True
+            shortages = {}
+
+            for recipe in recipes:
+                material_name = recipe.raw_material.name
+                required_amount = recipe.required_quantity * required_quantity
+                available_quantity = stock_dict[material_name].quantity
+
+                if available_quantity < required_amount:
+                    shortages[material_name] = required_amount - available_quantity
+                    sufficient_resources = False
+                else:
+                    stock_dict[material_name].quantity -= required_amount
+
+            if sufficient_resources:
+                production_department = product.production_department
+                production_time = (order['end_date'] - order['start_date']).days
+                monthly_output = production_department.average_output
+                required_months = required_quantity / monthly_output
+
+                overlapping_orders = ProductionPlan.objects.filter(
+                    product__production_department=production_department,
+                    order__end_date__gte=order['start_date'],
+                    order__start_date__lte=order['end_date']
+                )
+
+                current_load = 0
+                for overlapping_order in overlapping_orders:
+                    overlap_days = (min(overlapping_order.order.end_date, order['end_date']) - max(
+                        overlapping_order.order.start_date, order['start_date'])).days
+                    overlap_months = overlap_days / 30
+                    current_load += overlapping_order.planned_quantity / overlap_months
+
+                available_capacity = monthly_output - current_load
+                if available_capacity <= 0 or required_quantity > available_capacity * required_months:
+                    delay = (
+                                    required_quantity / available_capacity) - required_months if available_capacity > 0 else required_months
+                    if delay > 0:
+                        manager_report.append(
+                            f"Производственный отдел {product.name} не сможет уложиться в сроки, просрочка составит {delay:.2f} дней")
+                    else:
+                        manager_report.append(
+                            f"Производственный отдел {product.name} может произвести {required_quantity} единиц за {required_months:.2f} месяцев")
+                else:
+                    manager_report.append(
+                        f"Производственный отдел {product.name} может произвести {required_quantity} единиц за {required_months:.2f} месяцев")
+
+                    # Создаем заказ и план производства
+                    management_order = ManagementOrder.objects.create(
+                        product=product,
+                        start_date=order['start_date'],
+                        end_date=order['end_date'],
+                        quantity=required_quantity
+                    )
+
+                    production_plan = ProductionPlan.objects.create(
+                        order=management_order,
+                        planned_quantity=required_quantity,
+                        actual_quantity=0,  # изначально фактическое количество 0
+                    )
+
+                    production_plans.append(production_plan)
+            else:
+                shortage_info = ', '.join(
+                    [f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
+                manager_report.append(f"Недостаточно сырья для производства {product.name}: {shortage_info}")
+
+        # Создаем временный файл ZIP для отчетов
+        with tempfile.TemporaryDirectory() as temp_dir:
+            zip_filename = os.path.join(temp_dir, 'production_plans.zip')
+            with ZipFile(zip_filename, 'w') as zip_file:
+                for plan in production_plans:
+                    filename = f"ProductionPlan_{plan.order.product.name}_{plan.order.start_date}.txt"
+                    filepath = os.path.join(temp_dir, filename)
+                    with open(filepath, 'w') as file:
+                        file.write(f"Product: {plan.order.product.name}\n")
+                        file.write(f"Start Date: {plan.order.start_date}\n")
+                        file.write(f"End Date: {plan.order.end_date}\n")
+                        file.write(f"Planned Quantity: {plan.planned_quantity}\n")
+                        file.write(f"Actual Quantity: {plan.actual_quantity}\n")
+                    zip_file.write(filepath, filename)
+
+            # Отправляем ZIP файл в ответ
+            with open(zip_filename, 'rb') as file:
+                response = HttpResponse(file.read(), content_type='application/zip')
+                response['Content-Disposition'] = f'attachment; filename="production_plans.zip"'
+                return response
+    else:
+        return HttpResponse("Invalid request method", status=405)
+
+
+class SaveProductionPlanView(View):
+    def post(self, request):
+        # Получаем данные из POST-запроса
+        print(request.POST)
+        products = request.POST.getlist('product')
+        start_dates = request.POST.getlist('start_date')
+        end_dates = request.POST.getlist('end_date')
+        quantities = request.POST.getlist('quantity')
+
+        if products and start_dates and end_dates and quantities:
+                # Создаем новый заказ
+            order_id = generate_order_id()
+
+
+            # Обновляем количество продуктов на складе и создаем производственные планы
+            for product_id, start_date, end_date, quantity in zip(products, start_dates, end_dates, quantities):
+
+                print(order_id)
+                print(product_id)
+                print(start_date)
+                print(end_date)
+                print(quantity)
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                print(order_id)
+                print(product_id)
+                print(start_date)
+                print(end_date)
+                print(quantity)
+
+                new_order = ManagementOrder.objects.create(Order_id=order_id,
+                                                           product_code_id=product_id,
+                                                           start_date=start_date,
+                                                           end_date=end_date,
+                                                           quantity=quantity)  # Указываем product_code
+                product = Product.objects.get(id=product_id)
+                # Получаем рецепты для данного продукта
+                recipes = Recipe.objects.filter(product=product)
+                # Обновляем количество сырья на складе
+                for recipe in recipes:
+                    raw_material = recipe.raw_material
+                    required_quantity = recipe.required_quantity * quantity
+                    # Проверяем наличие достаточного количества сырья на складе
+                    if raw_material.quantity < required_quantity:
+                        # Если не хватает сырья, выводим сообщение об ошибке
+                        raise Exception(f"Недостаточно сырья {raw_material.name} на складе")
+                    # Обновляем количество сырья на складе
+                    raw_material.quantity -= required_quantity
+                    raw_material.save()
+
+            for product, start_date, end_date, quantity in zip(products, start_dates, end_dates, quantities):
+                ProductionPlan.objects.create(
+                    order=new_order,
+                    product_id=product,
+                    planned_quantity=quantity
+                )
+
+                    # Перенаправляем пользователя после сохранения
+            return redirect('farmer:production_plan_list')
+        else:
+            # Вывести сообщение об ошибке или выполнить другое действие в случае пустых списков
+            return HttpResponse("Ошибка: Не удалось получить данные из формы")
+
+def generate_order_id():
+    prefix = 'PROIS'
+    # Генерируем уникальный идентификатор, например, добавляя случайное число к префиксу
+    unique_id = random.randint(10000, 99999)
+    return unique_id
 
 def save_production_plan(request, order_id):
     if request.method == 'POST':
@@ -290,22 +706,42 @@ class ProductionDepartmentsListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Допустим, у нас есть данные о производственных заказах
-        orders = ManagementOrder.objects.all().select_related('product_code__production_department')
+        # Получаем выбранный месяц из GET параметров
+        month_str = self.request.GET.get('month')
+        if month_str:
+            selected_month = datetime.strptime(month_str, '%Y-%m')
+        else:
+            selected_month = datetime.now()
 
-        # Группируем заказы по производственным отделам
+        # Определяем временной интервал для выбранного месяца
+        start_date = datetime(selected_month.year, selected_month.month, 1)
+        end_date = (start_date + timedelta(days=31)).replace(day=1) - timedelta(seconds=1)
+
+        # Преобразование в осознанное время только если время наивное
+        if is_naive(start_date):
+            start_date = make_aware(start_date)
+        if is_naive(end_date):
+            end_date = make_aware(end_date)
+
+        # Получение только утвержденных заказов, которые включены в производственный план в выбранный месяц
+        production_plans = ProductionPlan.objects.select_related('order', 'product__production_department').filter(
+            order__start_date__lte=end_date,
+            order__end_date__gte=start_date
+        )
+
+        # Группировка заказов по производственным отделам
         departments = ProductionDepartment.objects.all()
         load_data = []
         for department in departments:
             department_orders = []
-            for order in orders:
-                if order.product_code.production_department == department:
+            for plan in production_plans:
+                if plan.product.production_department == department:
                     department_orders.append({
-                        'order_id': order.Order_id,
-                        'product': order.product_code.name,
-                        'start_date': order.start_date.strftime('%Y-%m-%d'),
-                        'end_date': order.end_date.strftime('%Y-%m-%d'),
-                        'quantity': order.quantity,
+                        'order_id': plan.order.Order_id,
+                        'product': plan.product.name,
+                        'start_date': plan.order.start_date.strftime('%Y-%m-%d'),
+                        'end_date': plan.order.end_date.strftime('%Y-%m-%d'),
+                        'quantity': plan.order.quantity,
                         'monthly_output': department.average_output
                     })
             load_data.append({
@@ -313,13 +749,10 @@ class ProductionDepartmentsListView(ListView):
                 'load': department_orders
             })
 
-        # Определяем временной интервал для оси X (1 месяц до текущей даты и 1 месяц после)
-        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-        end_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
-
         context['load_data'] = load_data
-        context['start_date'] = start_date
-        context['end_date'] = end_date
+        context['start_date'] = start_date.strftime('%Y-%m-%d')
+        context['end_date'] = end_date.strftime('%Y-%m-%d')
+        context['selected_month'] = selected_month.strftime('%Y-%m')
         return context
 
 class ProductsListView(ListView):

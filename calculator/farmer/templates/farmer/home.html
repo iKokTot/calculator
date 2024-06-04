@@ -1,32 +1,60 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row center-xs">
-    <div class="col-xs-6">
-        <div class="btn">
-            <a href="{% url 'farmer:production_departments_list' %}" >Производственные отделы</a>
-        </div>
-        <div class="btn">
-            <a href="{% url 'farmer:products_list' %}" >Продукция</a>
-        </div>
-        <div class="btn">
-            <a href="{% url 'farmer:raw_material_stock_list' %}" >Сырье на складе</a>
-        </div>
-        <div class="btn">
-            <a href="{% url 'farmer:stock_list' %}" >Склады</a>
-        </div>
-        <div class="btn">
-            <a href="{% url 'farmer:recipes_list' %}" >Рецепты</a>
-        </div>
-        <div class="btn">
-            <a href="{% url 'farmer:production_plans_list' %}" >Производственные планы</a>
-        </div>
-        <div class="btn">
-            <a href="{% url 'farmer:orders_list' %}" >Заявки</a>
-        </div>
-        <div class="btn">
-            <a href="{% url 'farmer:show_import_form' %}" >Калькулятор</a>
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="d-grid gap-3">
+            <div>
+                <a href="{% url 'farmer:production_departments_list' %}" class="btn btn-primary btn-custom">Производственные отделы</a>
+                <p class="text-muted">Просмотр и управление производственными отделами.</p>
+            </div>
+            <div>
+                <a href="{% url 'farmer:products_list' %}" class="btn btn-primary btn-custom">Продукция</a>
+                <p class="text-muted">Просмотр и управление продуктами.</p>
+            </div>
+            <div>
+                <a href="{% url 'farmer:raw_material_stock_list' %}" class="btn btn-primary btn-custom">Сырье на складе</a>
+                <p class="text-muted">Просмотр и управление запасами сырья.</p>
+            </div>
+            <div>
+                <a href="{% url 'farmer:stock_list' %}" class="btn btn-primary btn-custom">Склады</a>
+                <p class="text-muted">Просмотр и управление складами.</p>
+            </div>
+            <div>
+                <a href="{% url 'farmer:recipes_list' %}" class="btn btn-primary btn-custom">Рецепты</a>
+                <p class="text-muted">Просмотр и управление рецептами продукции.</p>
+            </div>
+            <div>
+                <a href="{% url 'farmer:production_plans_list' %}" class="btn btn-primary btn-custom">Производственные планы</a>
+                <p class="text-muted">Просмотр и управление производственными планами.</p>
+            </div>
+            <div>
+                <a href="{% url 'farmer:orders_list' %}" class="btn btn-primary btn-custom">Заявки</a>
+                <p class="text-muted">Просмотр и управление заявками от менеджеров.</p>
+            </div>
+            <div>
+                <a href="{% url 'farmer:multi_product_production_plan' %}" class="btn btn-primary btn-custom">Калькулятор</a>
+                <p class="text-muted">Калькулятор для планирования производства нескольких продуктов.</p>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    .btn-custom {
+        background-color: #4CAF50;
+        border-color: #4CAF50;
+        transition: background-color 0.3s, transform 0.3s; /* Плавное изменение цвета и эффекта */
+        margin-bottom: 10px; /* Расстояние между кнопками */
+    }
+    .btn-custom:hover {
+        background-color: #45a049; /* Изменение цвета при наведении */
+        transform: scale(1.05); /* Легкое увеличение при наведении */
+    }
+    .text-muted {
+        margin-top: -8px;
+        margin-bottom: 15px;
+        font-size: 0.9rem; /* Размер шрифта для описания */
+    }
+</style>
 {% endblock %}

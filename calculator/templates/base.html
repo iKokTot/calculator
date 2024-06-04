@@ -3,24 +3,20 @@
 <html xmlns="http://www.w3.org/1999/html">
 <head>
     <title>{% block title %}ООО Фермер{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css" type="text/css" >
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap');
-      body {
-            font-family: 'Roboto', sans-serif; /* Обновление шрифта для современного вида */
+        body {
+            font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f8f8f8;
-            color: #333; /* Цвет текста для лучшей читаемости */
+            color: #333;
         }
         header {
             background-color: #4CAF50;
             color: white;
             padding: 10px 20px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
         .logo {
             width: 50px;
@@ -34,30 +30,13 @@
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 16px; /* Увеличение размера шрифта для кнопок */
+            font-size: 16px;
         }
         .user-info button:hover {
-            text-decoration: underline; /* Добавление эффекта при наведении на кнопку выхода */
+            text-decoration: underline;
         }
         main {
             margin: 15px;
-        }
-        .btn {
-            text-align: center;
-            font-size: 16px; /* Увеличение размера шрифта для кнопок */
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px; /* Скругление углов кнопок */
-            transition: background-color 0.3s; /* Плавное изменение цвета при наведении */
-            background-color: #4CAF50;
-            padding: 10px 24px;
-            margin: 10px 0;
-            width: 100%;
-        }
-        .btn:hover {
-            background-color: #45a049; /* Изменение цвета при наведении */
         }
         footer {
             background-color: #333;
@@ -67,9 +46,6 @@
             bottom: 0;
             width: 100%;
         }
-
-
-
         .box {
             padding: 20px;
             border: 1px solid #ccc;
@@ -77,20 +53,7 @@
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-
-
-        input[type='text'], input[type='password'] {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        form p {
-            text-align: center;
-        }
-         .scrollable-table {
+        .scrollable-table {
             max-height: 400px;
             overflow-y: scroll;
             display: block;
@@ -101,38 +64,39 @@
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo-container">
-            <a href="{% url 'farmer:home' %}">
-            <img src="{% static 'logo.jpg' %}" alt="Logo" class="logo">
-            </a>
-        </div>
-        <div class="title-container">
-            <h1>ООО Фермер</h1>
-        </div>
-        <div class="user-info">
-            {% if user.is_authenticated %}
-                Привет, {{ user.username }} |  <form action="{% url 'users:logout' %}" method="post">
-                                                        {% csrf_token %}
-                                                        <button type="submit">Выйти</button>
-                                                </form>
-            {% else %}
-                <a href="{% url 'users:login' %}">Войти</a>
-            {% endif %}
-
+    <header class="container-fluid">
+        <div class="row align-items-center w-100">
+            <div class="col-sm-2 logo-container text-center text-md-left">
+                <a href="{% url 'farmer:home' %}">
+                    <img src="{% static 'logo.jpg' %}" alt="Logo" class="logo">
+                </a>
+            </div>
+            <div class="col-sm-8 text-center title-container">
+                <h1>ООО Фермер</h1>
+            </div>
+            <div class="col-sm-2 text-right user-info">
+                {% if user.is_authenticated %}
+                    Привет, {{ user.username }} |
+                    <form action="{% url 'users:logout' %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-link text-white p-0">Выйти</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'users:login' %}" class="text-white">Войти</a>
+                {% endif %}
+            </div>
         </div>
     </header>
-    <main>
-
-
-
+    <main class="container">
         {% block content %}{% endblock %}
     </main>
     <footer>
         <p>© 2024 ООО Фермер. Все права защищены.</p>
     </footer>
-</body>
-<script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
         function searchTable(inputId, tableId) {
             const input = document.getElementById(inputId);
             const filter = input.value.toLowerCase();
@@ -157,4 +121,5 @@
             }
         }
     </script>
+</body>
 </html>

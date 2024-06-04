@@ -1,21 +1,27 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row center-xs">
-    <div class="col-xs-6">
-        <div>
-        <h1 style="font-family: 'Roboto', sans-serif; text-align: center;">Авторизация</h1>
-
-            <form method="post" class="box ">
-                {% csrf_token %}
-                {{ form.as_p }}
-                <p><button type="submit" class="btn">Войти</button></p>
-            </form>
+<div class="row justify-content-center sm-12">
+    <div class="col-sm-6 col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="text-center sm-4" style="font-family: 'Roboto', sans-serif;">Авторизация</h1>
+                 <form method="post" class="box">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.username.label_tag }}
+                        {{ form.username }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password.label_tag }}
+                        {{ form.password }}
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">Войти</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
-
-<style>
-
-</style>
 {% endblock %}

@@ -1,22 +1,19 @@
-
-
 {% extends 'base.html' %}
 
 {% block content %}
-        <div class="row end-xs ">
-            <div class="col-xs-3 btn">
-                <div >
-                    <a href="{% url 'farmer:show_import_form' %}" >Импорт заявок</a>
-                </div>
-            </div>
-        </div>
+<div class="row justify-content-end mt-3">
+    <div class="col-md-3">
+        <a href="{% url 'farmer:show_import_form' %}" class="btn btn-primary btn-custom">Импорт заявок</a>
+        <p class="text-muted">Загрузите и импортируйте новые заявки.</p>
+    </div>
+</div>
 
-<div class="row center-xs">
-    <div class="col-xs-12">
-        <div>
-            <h2>Список заявок</h2>
-            <table>
-                <thead>
+<div class="row justify-content-center mt-3">
+    <div class="col-md-12">
+        <h2 class="text-center">Список заявок</h2>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead class="thead-dark">
                     <tr>
                         <th>Код заказа</th>
                         <th>Количество заявок</th>
@@ -29,7 +26,7 @@
                         <td>{{ order.Order_id }}</td>
                         <td>{{ order.total }}</td>
                         <td>
-                            <a href="{% url 'farmer:order_details' order.Order_id %}">Подробнее</a>
+                            <a href="{% url 'farmer:order_details' order.Order_id %}" class="btn btn-link">Подробнее</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -38,4 +35,25 @@
         </div>
     </div>
 </div>
+
+<style>
+    .btn-custom {
+        background-color: #4CAF50;
+        border-color: #4CAF50;
+        transition: background-color 0.3s, transform 0.3s; /* Плавное изменение цвета и эффекта */
+        margin-bottom: 10px; /* Расстояние между кнопками */
+    }
+    .btn-custom:hover {
+        background-color: #45a049; /* Изменение цвета при наведении */
+        transform: scale(1.05); /* Легкое увеличение при наведении */
+    }
+    .text-muted {
+        margin-top: -8px;
+        margin-bottom: 15px;
+        font-size: 0.9rem; /* Размер шрифта для описания */
+    }
+    .table {
+        margin-top: 20px; /* Отступ сверху для таблицы */
+    }
+</style>
 {% endblock %}

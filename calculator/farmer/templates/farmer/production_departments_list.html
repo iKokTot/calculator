@@ -33,6 +33,11 @@
 <div class="row center-xs">
     <div class="col-xs-12">
         <h2>Загруженность отделов</h2>
+        <form method="GET" class="form-inline">
+            <label for="month">Выберите месяц:</label>
+            <input type="month" id="month" name="month" value="{{ selected_month }}">
+            <button type="submit">Показать</button>
+        </form>
         {% for data in load_data %}
         <div class="department-load">
             <h3>{{ data.department }}</h3>
@@ -60,76 +65,70 @@
     }
 </style>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const loadData = {{ load_data|safe }};
-        const startDate = "{{ start_date }}";
-        const endDate = "{{ end_date }}";
+document.addEventListener('DOMContentLoaded', function() {
+    const loadData = {{ load_data|safe }};
+    const startDate = new Date("{{ start_date }}");
+    const endDate = new Date("{{ end_date }}");
 
-        loadData.forEach((data, index) => {
-            const ctx = document.getElementById(`chart-${index}`).getContext('2d');
+    loadData.forEach((data, index) => {
+        const ctx = document.getElementById(`chart-${index}`).getContext('2d');
 
-            // Подготовка данных для графика
-            const datasets = data.load.map((load, idx) => ({
-                label: `Заказ ${load.order_id}`,
-                data: [{
-                    x: load.start_date,
-                    y: idx,
-                    x2: load.end_date,
-                }],
-                backgroundColor: getRandomColor(),
-                borderColor: getRandomColor(),
-                borderWidth: 1,
-                barPercentage: 1,
-                categoryPercentage: 1,
-            }));
+        // Подготовка данных для графика
+        const datasets = data.load.map((load, idx) => ({
+            label: `Заказ ${load.order_id}`,
+            data: [
+                { x: new Date(load.start_date), y: load.quantity },
+                { x: new Date(load.end_date), y: load.quantity }
+            ],
+            borderColor: getRandomColor(),
+            backgroundColor: getRandomColor(),
+            fill: false,
+            stepped: true,
+        }));
 
-            const config = {
-                type: 'bar',
-                data: {
-                    datasets: datasets
-                },
-                options: {
-                    indexAxis: 'y',
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                min: startDate,
-                                max: endDate
-                            },
-                            title: {
-                                display: true,
-                                text: 'Время'
-                            }
+        const config = {
+            type: 'line',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            min: startDate,
+                            max: endDate
                         },
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: (value, index) => `Заказ ${data.load[index]?.order_id || ''}`
-                            },
-                            title: {
-                                display: true,
-                                text: 'Заказы'
-                            }
+                        title: {
+                            display: true,
+                            text: 'Время'
                         }
                     },
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            };
-
-            new Chart(ctx, config);
-        });
-
-        function getRandomColor() {
-            const letters = '0123456789ABCDEF';
-            let color = '#';
-            for (let i = 0; i < 6; i++) {
-                color += letters[Math.floor(Math.random() * 16)];
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Количество продукции'
+                        }
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false
             }
-            return color;
-        }
+        };
+
+        new Chart(ctx, config);
     });
+
+    function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+});
 </script>
 {% endblock %}

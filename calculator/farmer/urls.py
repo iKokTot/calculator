@@ -11,6 +11,10 @@ urlpatterns = [
     path('orders_list/', views.orders_list, name='orders_list'),
     path('order_details/<str:order_id>/', views.order_details, name='order_details'),
     path('calculate_plan/<str:order_id>/', views.calculate_production_plan, name='calculate_plan'),
+    path('multi-product-production-plan/', views.MultiProductProductionPlanView.as_view(),
+         name='multi_product_production_plan'),
+
+    path('save-production-plan-multi/', views.SaveProductionPlanView.as_view(), name='save_production_plan_multi'),
     path('save_production_plan/<int:order_id>/', views.save_production_plan, name='save_production_plan'),
     path('success/', views.success_page, name='success_page'),
     path('departments/',  views.ProductionDepartmentsListView.as_view(), name='production_departments_list'),
