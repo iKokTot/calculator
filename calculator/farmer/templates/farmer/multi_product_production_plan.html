@@ -1,76 +1,107 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="container">
+<div class="container">
     <h2 class="my-4">Создание производственного плана</h2>
     <form method="post" class="mb-4">
-      {% csrf_token %}
-      <div id="products-container">
-        <div class="product-entry form-row mb-3">
-          <div class="col">
-            <label for="products">Продукт:</label>
-            <select name="products" class="form-control" required>
-              {% for product in products %}
-                <option value="{{ product.id }}">{{ product.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col">
-            <label for="start_date">Дата начала:</label>
-            <input type="date" name="start_dates" class="form-control" required>
-          </div>
-          <div class="col">
-            <label for="end_date">Дата окончания:</label>
-            <input type="date" name="end_dates" class="form-control" required>
-          </div>
-          <div class="col">
-            <label for="quantity">Количество:</label>
-            <input type="number" name="quantities" class="form-control" min="1" required>
-          </div>
+        {% csrf_token %}
+        <div id="products-container">
+            <div class="product-entry form-row mb-3">
+                <div class="col">
+                    <label for="products">Продукт:</label>
+                    <select name="products" class="form-control" required>
+                        {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col">
+                    <label for="start_date">Дата начала:</label>
+                    <input type="date" name="start_dates" class="form-control" required>
+                </div>
+                <div class="col">
+                    <label for="end_date">Дата окончания:</label>
+                    <input type="date" name="end_dates" class="form-control" required>
+                </div>
+                <div class="col">
+                    <label for="quantity">Количество:</label>
+                    <input type="number" name="quantities" class="form-control" min="1" required>
+                </div>
+                <div class="col align-self-end">
+                    <button type="button" class="btn btn-danger btn-remove">Удалить</button>
+                </div>
+            </div>
         </div>
-      </div>
-      <button type="button" class="btn btn-secondary" onclick="addProduct()">Добавить продукт</button>
-      <button type="submit" class="btn btn-primary">Рассчитать</button>
+        <button type="button" class="btn btn-secondary" onclick="addProduct()">Добавить продукт</button>
+        <button type="submit" class="btn btn-primary custom-btn-color">Рассчитать</button>
     </form>
 
     {% if production_possibility %}
-      <h3 class="my-4">Результаты расчета:</h3>
-      <ul class="list-group mb-4">
-        {% for product_name, message in production_possibility.items %}
-          <li class="list-group-item">{{ product_name }}: {{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-
-  <script>
-    function addProduct() {
-      const container = document.getElementById('products-container');
-      const entry = document.createElement('div');
-      entry.className = 'product-entry form-row mb-3';
-      entry.innerHTML = `
-        <div class="col">
-          <label for="products">Продукт:</label>
-          <select name="products" class="form-control" required>
-            {% for product in products %}
-              <option value="{{ product.id }}">{{ product.name }}</option>
+        <h3 class="my-4">Результаты расчета:</h3>
+        <ul class="list-group mb-4">
+            {% for product_name, message in production_possibility.items %}
+                <li class="list-group-item">{{ product_name }}: {{ message }}</li>
             {% endfor %}
-          </select>
-        </div>
-        <div class="col">
-          <label for="start_date">Дата начала:</label>
-          <input type="date" name="start_dates" class="form-control" required>
-        </div>
-        <div class="col">
-          <label for="end_date">Дата окончания:</label>
-          <input type="date" name="end_dates" class="form-control" required>
-        </div>
-        <div class="col">
-          <label for="quantity">Количество:</label>
-          <input type="number" name="quantities" class="form-control" min="1" required>
-        </div>
-      `;
-      container.appendChild(entry);
+        </ul>
+    {% endif %}
+</div>
+
+<script>
+    function addProduct() {
+        const container = document.getElementById('products-container');
+        const entry = document.createElement('div');
+        entry.className = 'product-entry form-row mb-3';
+        entry.innerHTML = `
+            <div class="col">
+                <label for="products">Продукт:</label>
+                <select name="products" class="form-control" required>
+                    {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col">
+                <label for="start_date">Дата начала:</label>
+                <input type="date" name="start_dates" class="form-control" required>
+            </div>
+            <div class="col">
+                <label for="end_date">Дата окончания:</label>
+                <input type="date" name="end_dates" class="form-control" required>
+            </div>
+            <div class="col">
+                <label for="quantity">Количество:</label>
+                <input type="number" name="quantities" class="form-control" min="1" required>
+            </div>
+            <div class="col align-self-end">
+                <button type="button" class="btn btn-danger btn-remove">Удалить</button>
+            </div>
+        `;
+        container.appendChild(entry);
+        attachRemoveButtonHandler();
     }
-  </script>
+
+    function attachRemoveButtonHandler() {
+        const removeButtons = document.querySelectorAll('.btn-remove');
+        removeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.product-entry').remove();
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        attachRemoveButtonHandler();
+    });
+</script>
+
+<style>
+    .custom-btn-color {
+        background-color: #004085;
+        border-color: #003060;
+        color: white;
+    }
+    .btn-remove {
+        margin-top: 30px;
+    }
+</style>
 {% endblock %}

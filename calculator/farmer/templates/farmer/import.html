@@ -1,18 +1,21 @@
 {% extends 'base.html' %}
 
- {% block content %}
-        <!-- Содержимое блока content -->
-        <div class="row center-xs">
-            <div class="col-xs-6">
-                <h2>Импорт заявок от менеджеров</h2>
-                <form id="import-form" action="{% url 'farmer:import_management_orders' %}" method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <input type="file" name="json_file" accept=".txt, .json" required>
-                    <button type="submit" class="btn">Загрузить</button>
-                    <div id="form-response"></div> <!-- Элемент для вывода ответа -->
-                </form>
-            </div>
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2 class="my-4">Импорт заявок от менеджеров</h2>
+            <form id="import-form" action="{% url 'farmer:import_management_orders' %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="file" name="json_file" accept=".txt, .json" class="form-control-file" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Загрузить</button>
+                <div id="form-response" class="mt-3" style="display:none;"></div> <!-- Элемент для вывода ответа -->
+            </form>
         </div>
+    </div>
+</div>
 
 <script>
 document.getElementById('import-form').addEventListener('submit', function(e) {
@@ -40,5 +43,5 @@ document.getElementById('import-form').addEventListener('submit', function(e) {
       });
 });
 </script>
-
 {% endblock %}
+

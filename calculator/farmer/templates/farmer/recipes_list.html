@@ -1,27 +1,34 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row center-xs">
-    <div class="col-xs-12">
+<div class="row center-sm">
+    <div class="col-sm-12">
         <h2>Рецепты</h2>
         <div class="search-container">
             <input type="text" id="recipeSearch" onkeyup="searchTable('recipeSearch', 'recipeTable')" placeholder="Поиск рецепта...">
         </div>
-        <div class="scrollable-table">
-            <table id="recipeTable">
-                <thead>
+        <div class="scrollable-table row-center-sm">
+            <table id="recipeTable" class="table table-striped ">
+                <thead class="thead-dark">
                     <tr>
                         <th>Продукт</th>
-                        <th>Сырье</th>
-                        <th>Необходимое количество</th>
+                        <th>Сырье и необходимое количество</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for recipe in recipes %}
-                    <tr>
-                        <td>{{ recipe.product.name }}</td>
-                        <td>{{ recipe.raw_material.name }}</td>
-                        <td>{{ recipe.required_quantity }}</td>
+                    {% for product, recipe_group in grouped_recipes.items %}
+                    <tr class="row-center-sm">
+                        <td class="col-sm-4">{{ product }}</td>
+                        <td class="col-sm-8">
+                            <table class="table mb-0">
+                                {% for recipe in recipe_group %}
+                                <tr>
+                                    <td>{{ recipe.raw_material.name }}</td>
+                                    <td>{{ recipe.required_quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -29,4 +36,45 @@
         </div>
     </div>
 </div>
+
+<script>
+function searchTable(inputId, tableId) {
+    const input = document.getElementById(inputId);
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById(tableId);
+    const rows = table.getElementsByTagName('tr');
+
+    for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].getElementsByTagName('td');
+        let rowContainsFilter = false;
+
+        for (let j = 0; j < cells.length; j++) {
+            if (cells[j]) {
+                const cellValue = cells[j].textContent || cells[j].innerText;
+                if (cellValue.toLowerCase().indexOf(filter) > -1) {
+                    rowContainsFilter = true;
+                    break;
+                }
+            }
+        }
+
+        rows[i].style.display = rowContainsFilter ? '' : 'none';
+    }
+}
+</script>
+
+<style>
+.scrollable-table {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.table-responsive {
+    margin-top: 20px;
+}
+
+.table td, .table th {
+    vertical-align: middle;
+}
+</style>
 {% endblock %}

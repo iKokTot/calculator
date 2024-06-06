@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-k3clah3=81_i2s82ouf$%3np1hyyot9=$4iwu!wh1=_y)3#e%)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['61d2-178-141-10-100.ngrok-free.app','localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['f93b-178-141-47-194.ngrok-free.app','localhost', '127.0.0.1']
 
 # Application definition
 
@@ -106,7 +106,7 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-CSRF_TRUSTED_ORIGINS = ['https://61d2-178-141-10-100.ngrok-free.app']
+CSRF_TRUSTED_ORIGINS = ['https://f93b-178-141-47-194.ngrok-free.app']
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
@@ -130,7 +130,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
-
+LOGIN_URL = 'users:login'
 STATIC_URL = 'static/'
 
 # Default primary key field type

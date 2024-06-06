@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row center-xs">
-    <div class="col-xs-12">
-        <h2>Производственные отделы</h2>
-        <div class="search-container">
-            <input type="text" id="departmentSearch" onkeyup="searchTable('departmentSearch', 'departmentTable')" placeholder="Поиск отдела...">
+<div class="row justify-content-center mt-3">
+    <div class="col-md-12">
+        <h2 class="text-center">Производственные отделы</h2>
+        <div class="input-group mb-3">
+            <input type="text" id="departmentSearch" onkeyup="searchTable('departmentSearch', 'departmentTable')" class="form-control" placeholder="Поиск отдела...">
         </div>
-        <div class="scrollable-table">
-            <table id="departmentTable">
-                <thead>
+        <div class="table-responsive scrollable-table">
+            <table id="departmentTable" class="table table-striped">
+                <thead class="thead-dark">
                     <tr>
                         <th>Название</th>
                         <th>Тип продуктов</th>
@@ -30,17 +30,19 @@
     </div>
 </div>
 
-<div class="row center-xs">
-    <div class="col-xs-12">
-        <h2>Загруженность отделов</h2>
-        <form method="GET" class="form-inline">
-            <label for="month">Выберите месяц:</label>
-            <input type="month" id="month" name="month" value="{{ selected_month }}">
-            <button type="submit">Показать</button>
+<div class="row justify-content-center mt-5">
+    <div class="col-md-12">
+        <h2 class="text-center">Загруженность отделов</h2>
+        <form method="GET" class="form-inline justify-content-center mb-3">
+            <div class="form-group mr-2">
+                <label for="month" class="mr-2">Выберите месяц:</label>
+                <input type="month" id="month" name="month" value="{{ selected_month }}" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Показать</button>
         </form>
         {% for data in load_data %}
         <div class="department-load">
-            <h3>{{ data.department }}</h3>
+            <h3 class="text-center">{{ data.department }}</h3>
             <div class="chart-container">
                 <canvas id="chart-{{ forloop.counter0 }}"></canvas>
             </div>
@@ -49,7 +51,6 @@
     </div>
 </div>
 
-<!-- Подключение Chart.js и адаптера даты -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <style>
@@ -62,6 +63,11 @@
 
     .department-load {
         margin-bottom: 20px;
+    }
+
+    .scrollable-table {
+        max-height: 400px;
+        overflow-y: auto;
     }
 </style>
 <script>

@@ -36,6 +36,14 @@
                 <a href="{% url 'farmer:multi_product_production_plan' %}" class="btn btn-primary btn-custom">Калькулятор</a>
                 <p class="text-muted">Калькулятор для планирования производства нескольких продуктов.</p>
             </div>
+
+                {% if user.is_superuser %}
+                    <div class="">
+                        <a href="{% url 'farmer:create_user' %}" class="btn btn-primary btn-custom">Создать пользователя</a>
+                    </div>
+                {% endif %}
+
+
         </div>
     </div>
 </div>

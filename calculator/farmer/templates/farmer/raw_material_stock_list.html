@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row center-xs">
-    <div class="col-xs-12">
-        <h2>Сырье на складе</h2>
-        <div class="search-container">
-            <input type="text" id="rawMaterialSearch" onkeyup="searchTable('rawMaterialSearch', 'rawMaterialTable')" placeholder="Поиск сырья...">
+<div class="row justify-content-center mt-3">
+    <div class="col-md-12">
+        <h2 class="text-center">Сырье на складе</h2>
+        <div class="input-group mb-3">
+            <input type="text" id="rawMaterialSearch" onkeyup="searchTable('rawMaterialSearch', 'rawMaterialTable')" class="form-control" placeholder="Поиск сырья...">
         </div>
-        <div class="scrollable-table">
-            <table id="rawMaterialTable">
-                <thead>
+        <div class="table-responsive scrollable-table">
+            <table id="rawMaterialTable" class="table table-striped">
+                <thead class="thead-dark">
                     <tr>
                         <th>Название сырья</th>
                         <th>Количество</th>
@@ -29,4 +29,41 @@
         </div>
     </div>
 </div>
+
+<script>
+function searchTable(inputId, tableId) {
+    const input = document.getElementById(inputId);
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById(tableId);
+    const rows = table.getElementsByTagName('tr');
+
+    for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].getElementsByTagName('td');
+        let rowContainsFilter = false;
+
+        for (let j = 0; j < cells.length; j++) {
+            if (cells[j]) {
+                const cellValue = cells[j].textContent || cells[j].innerText;
+                if (cellValue.toLowerCase().indexOf(filter) > -1) {
+                    rowContainsFilter = true;
+                    break;
+                }
+            }
+        }
+
+        rows[i].style.display = rowContainsFilter ? '' : 'none';
+    }
+}
+</script>
+
+<style>
+.scrollable-table {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.table-responsive {
+    margin-top: 20px;
+}
+</style>
 {% endblock %}

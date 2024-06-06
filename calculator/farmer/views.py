@@ -5,6 +5,8 @@ from itertools import groupby
 from operator import attrgetter
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.dateformat import DateFormat
 from django.utils.timezone import make_aware, is_naive
 from django.views import View
@@ -14,7 +16,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, TemplateView
 
-from .forms import ProductionPlanForm
+from .forms import ProductionPlanForm, UserCreationForm
 from .models import ProductionDepartment, Product, RawMaterialStock, Stock, Recipe, ProductionPlan, ManagementOrder
 from django.shortcuts import render, get_object_or_404,redirect
 from django.core.exceptions import ValidationError
@@ -28,6 +30,24 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+@login_required
+def create_user(request):
+    if not request.user.is_superuser:
+        return redirect('home')  # Перенаправление на главную страницу, если не суперпользователь
+
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data['password'])
+            user.save()
+            return redirect('home')  # Перенаправление на главную страницу после успешного создания
+    else:
+        form = UserCreationForm()
+
+    return render(request, 'farmer/create_user.html', {'form': form})
+
+@login_required
 @require_POST
 def import_management_orders(request):
     try:
@@ -37,16 +57,26 @@ def import_management_orders(request):
 
         data = json.load(json_file)
         for item in data:
-            # Проверка на дубликаты перед созданием
-            if ManagementOrder.objects.filter(product_code=item['product_code'], start_date=item['start_date']).exists():
-                return JsonResponse({'error': f'Заявка с кодом продукта {item["product_code"]} на дату {item["start_date"]} уже существует.'}, status=400)
             try:
+                # Проверка и получение продукта по коду
+                product = Product.objects.get(id=item['product_code'])
+
+                # Проверка на дубликаты перед созданием
+                if ManagementOrder.objects.filter(product_code=product, start_date=item['start_date']).exists():
+                    return JsonResponse({
+                                            'error': f'Заявка с кодом продукта {item["product_code"]} на дату {item["start_date"]} уже существует.'},
+                                        status=400)
+
+                # Создание новой заявки
                 ManagementOrder.objects.create(
-                    product_code=item['product_code'],
+                    Order_id=item['Order_id'],
+                    product_code=product,
                     start_date=item['start_date'],
                     end_date=item['end_date'],
                     quantity=item['quantity']
                 )
+            except Product.DoesNotExist:
+                return JsonResponse({'error': f'Продукт с кодом {item["product_code"]} не найден.'}, status=400)
             except (KeyError, TypeError, ValidationError) as e:
                 return JsonResponse({'error': str(e)}, status=400)
 
@@ -56,11 +86,11 @@ def import_management_orders(request):
 
 
 
-
+@login_required
 def orders_list(request):
     orders = ManagementOrder.objects.values('Order_id').annotate(total=Count('id')).order_by('Order_id')
     return render(request, 'farmer/orders_list.html', {'orders': orders})
-
+@login_required
 def order_details(request, order_id):
     # Получаем все заказы с данным Order_id
     orders = ManagementOrder.objects.filter(Order_id=order_id).select_related('product_code')
@@ -72,15 +102,15 @@ def order_details(request, order_id):
         'order_id': order_id,
         'recipes': recipes,
     })
-
+@login_required
 def home(request):
     return render(request, 'farmer/home.html')
-
+@login_required
 def show_import_form(request):
     return render(request, 'farmer/import.html')
 
 
-class MultiProductProductionPlanView(TemplateView):
+class MultiProductProductionPlanView(LoginRequiredMixin,TemplateView):
     template_name = 'farmer/multi_product_production_plan.html'
 
     def get_context_data(self, **kwargs):
@@ -92,10 +122,10 @@ class MultiProductProductionPlanView(TemplateView):
 
         if self.request.method == 'POST':
             # Получаем список продуктов и их параметры из POST-запроса
-            products_ids = self.request.POST.getlist('product')
-            start_dates = self.request.POST.getlist('start_date')
-            end_dates = self.request.POST.getlist('end_date')
-            quantities = self.request.POST.getlist('quantity')
+            products_ids = self.request.POST.getlist('products')
+            start_dates = self.request.POST.getlist('start_dates')
+            end_dates = self.request.POST.getlist('end_dates')
+            quantities = self.request.POST.getlist('quantities')
 
             # Словарь для хранения общего необходимого количества каждого сырья
             total_required_materials = defaultdict(int)
@@ -166,13 +196,10 @@ class MultiProductProductionPlanView(TemplateView):
                             overlapping_order_end = overlapping_order.order.end_date
                             if isinstance(overlapping_order_end, datetime):
                                 overlapping_order_end = overlapping_order_end.date()
-                            order_start = order['start_date'].date() if isinstance(order['start_date'], datetime) else \
-                            order['start_date']
-                            order_end = order['end_date'].date() if isinstance(order['end_date'], datetime) else order[
-                                'end_date']
+                            order_start = order['start_date'].date() if isinstance(order['start_date'], datetime) else order['start_date']
+                            order_end = order['end_date'].date() if isinstance(order['end_date'], datetime) else order['end_date']
 
-                            overlap_days = (min(overlapping_order_end, order_end) - max(
-                                overlapping_order_start, order_start)).days
+                            overlap_days = (min(overlapping_order_end, order_end) - max(overlapping_order_start, order_start)).days
                             if overlap_days > 0:
                                 overlap_months = overlap_days / 30
                                 current_load += overlapping_order.planned_quantity / overlap_months
@@ -181,20 +208,15 @@ class MultiProductProductionPlanView(TemplateView):
                         required_months = required_quantity / monthly_output
 
                         if available_capacity <= 0 or required_quantity > available_capacity * required_months:
-                            delay = (
-                                                required_quantity / available_capacity) - required_months if available_capacity > 0 else required_months
+                            delay = (required_quantity / available_capacity) - required_months if available_capacity > 0 else required_months
                             if delay > 0.01:  # Установим порог для задержки
-                                production_possibility[
-                                    product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
+                                production_possibility[product.name] = f"Производственный отдел не сможет уложиться в сроки, просрочка составит {delay:.2f} дней"
                             else:
-                                production_possibility[
-                                    product.name] = f"Можно произвести {required_quantity} кг за {required_months:.2f} месяцев"
+                                production_possibility[product.name] = f"Можно произвести {required_quantity} кг за {required_months:.2f} месяцев"
                         else:
-                            production_possibility[
-                                product.name] = f"Можно произвести {required_quantity} кг за {required_months:.2f} месяцев"
+                            production_possibility[product.name] = f"Можно произвести {required_quantity} кг за {required_months:.2f} месяцев"
                     else:
-                        shortage_info = ', '.join(
-                            [f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
+                        shortage_info = ', '.join([f"{material}: недостает {amount} ед." for material, amount in shortages.items()])
                         production_possibility[product.name] = f"Недостаточно сырья: {shortage_info}"
 
             # Отображаем результаты расчёта
@@ -204,7 +226,8 @@ class MultiProductProductionPlanView(TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        return self.get(request, *args, **kwargs)
+        context = self.get_context_data(**kwargs)
+        return self.render_to_response(context)
 
 
 def calculate_multi_product_production_plan(request):
@@ -305,7 +328,7 @@ def calculate_production_possibility(orders):
 
     return production_possibility
 
-
+@login_required
 def calculate_production_plan(request, order_id):
     # Получаем все заявки с данным order_id
     orders = ManagementOrder.objects.filter(Order_id=order_id).select_related('product_code',
@@ -377,7 +400,7 @@ def calculate_production_plan(request, order_id):
     }
     return render(request, 'farmer/production_plan.html', context)
 
-
+@login_required
 def success_page(request):
     return render(request, 'farmer/success_page.html')
 
@@ -506,7 +529,7 @@ def save_multi_product_production_plan(request):
         return HttpResponse("Invalid request method", status=405)
 
 
-class SaveProductionPlanView(View):
+class SaveProductionPlanView(LoginRequiredMixin,View):
     def post(self, request):
         # Получаем данные из POST-запроса
         print(request.POST)
@@ -523,18 +546,10 @@ class SaveProductionPlanView(View):
             # Обновляем количество продуктов на складе и создаем производственные планы
             for product_id, start_date, end_date, quantity in zip(products, start_dates, end_dates, quantities):
 
-                print(order_id)
-                print(product_id)
-                print(start_date)
-                print(end_date)
-                print(quantity)
+
                 start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
                 end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-                print(order_id)
-                print(product_id)
-                print(start_date)
-                print(end_date)
-                print(quantity)
+
 
                 new_order = ManagementOrder.objects.create(Order_id=order_id,
                                                            product_code_id=product_id,
@@ -574,7 +589,7 @@ def generate_order_id():
     # Генерируем уникальный идентификатор, например, добавляя случайное число к префиксу
     unique_id = random.randint(10000, 99999)
     return unique_id
-
+@login_required
 def save_production_plan(request, order_id):
     if request.method == 'POST':
         # Получаем все заявки с данным order_id
@@ -698,7 +713,7 @@ def generate_manager_report(manager_report, temp_dir):
     document.save(file_path)
     return file_path
 
-class ProductionDepartmentsListView(ListView):
+class ProductionDepartmentsListView(LoginRequiredMixin,ListView):
     model = ProductionDepartment
     template_name = 'farmer/production_departments_list.html'
     context_object_name = 'departments'
@@ -755,27 +770,55 @@ class ProductionDepartmentsListView(ListView):
         context['selected_month'] = selected_month.strftime('%Y-%m')
         return context
 
-class ProductsListView(ListView):
+class ProductsListView(LoginRequiredMixin,ListView):
     model = Product
     template_name = 'farmer/products_list.html'
     context_object_name = 'products'
 
-class RawMaterialStockListView(ListView):
+class RawMaterialStockListView(LoginRequiredMixin,ListView):
     model = RawMaterialStock
     template_name = 'farmer/raw_material_stock_list.html'
     context_object_name = 'raw_materials'
 
-class StockListView(ListView):
+class StockListView(LoginRequiredMixin,ListView):
     model = Stock
     template_name = 'farmer/stock_list.html'
     context_object_name = 'stocks'
 
-class RecipesListView(ListView):
+@login_required
+def recipes_list(request):
+    # Получаем все рецепты
+    recipes = Recipe.objects.select_related('product', 'raw_material')
+
+    # Группируем рецепты по продукту
+    grouped_recipes = {}
+    for recipe in recipes:
+        if recipe.product.name not in grouped_recipes:
+            grouped_recipes[recipe.product.name] = []
+        grouped_recipes[recipe.product.name].append(recipe)
+
+    # Передаем сгруппированные рецепты в шаблон
+    return render(request, 'farmer/recipes_list.html', {
+        'grouped_recipes': grouped_recipes,
+    })
+
+class RecipesListView(LoginRequiredMixin,ListView):
     model = Recipe
     template_name = 'farmer/recipes_list.html'
     context_object_name = 'recipes'
 
-class ProductionPlansListView(ListView):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        recipes = self.get_queryset()
+
+        grouped_recipes = defaultdict(list)
+        for recipe in recipes:
+            grouped_recipes[recipe.product.name].append(recipe)
+
+        context['grouped_recipes'] = grouped_recipes
+        return context
+
+class ProductionPlansListView(LoginRequiredMixin,ListView):
     model = ProductionPlan
     template_name = 'farmer/production_plans_list.html'
     context_object_name = 'plans'

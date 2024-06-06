@@ -13,15 +13,15 @@ urlpatterns = [
     path('calculate_plan/<str:order_id>/', views.calculate_production_plan, name='calculate_plan'),
     path('multi-product-production-plan/', views.MultiProductProductionPlanView.as_view(),
          name='multi_product_production_plan'),
-
+    path('create_user/', views.create_user, name='create_user'),
     path('save-production-plan-multi/', views.SaveProductionPlanView.as_view(), name='save_production_plan_multi'),
-    path('save_production_plan/<int:order_id>/', views.save_production_plan, name='save_production_plan'),
+    path('save_production_plan/<str:order_id>/', views.save_production_plan, name='save_production_plan'),
     path('success/', views.success_page, name='success_page'),
     path('departments/',  views.ProductionDepartmentsListView.as_view(), name='production_departments_list'),
     path('products/',  views.ProductsListView.as_view(), name='products_list'),
     path('raw_materials/', views.RawMaterialStockListView.as_view(), name='raw_material_stock_list'),
     path('stocks/',  views.StockListView.as_view(), name='stock_list'),
-    path('recipes/',  views.RecipesListView.as_view(), name='recipes_list'),
+    path('recipes/',  views.recipes_list, name='recipes_list'),
     path('plans/',  views.ProductionPlansListView.as_view(), name='production_plans_list'),
 
 ]
