@@ -1,68 +1,134 @@
+
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="row justify-content-center mt-5">
-    <div class="col-md-6">
-        <div class="d-grid gap-3">
-            <div>
-                <a href="{% url 'farmer:production_departments_list' %}" class="btn btn-primary btn-custom">Производственные отделы</a>
-                <p class="text-muted">Просмотр и управление производственными отделами.</p>
-            </div>
-            <div>
-                <a href="{% url 'farmer:products_list' %}" class="btn btn-primary btn-custom">Продукция</a>
-                <p class="text-muted">Просмотр и управление продуктами.</p>
-            </div>
-            <div>
-                <a href="{% url 'farmer:raw_material_stock_list' %}" class="btn btn-primary btn-custom">Сырье на складе</a>
-                <p class="text-muted">Просмотр и управление запасами сырья.</p>
-            </div>
-            <div>
-                <a href="{% url 'farmer:stock_list' %}" class="btn btn-primary btn-custom">Склады</a>
-                <p class="text-muted">Просмотр и управление складами.</p>
-            </div>
-            <div>
-                <a href="{% url 'farmer:recipes_list' %}" class="btn btn-primary btn-custom">Рецепты</a>
-                <p class="text-muted">Просмотр и управление рецептами продукции.</p>
-            </div>
-            <div>
-                <a href="{% url 'farmer:production_plans_list' %}" class="btn btn-primary btn-custom">Производственные планы</a>
-                <p class="text-muted">Просмотр и управление производственными планами.</p>
-            </div>
-            <div>
-                <a href="{% url 'farmer:orders_list' %}" class="btn btn-primary btn-custom">Заявки</a>
-                <p class="text-muted">Просмотр и управление заявками от менеджеров.</p>
-            </div>
-            <div>
-                <a href="{% url 'farmer:multi_product_production_plan' %}" class="btn btn-primary btn-custom">Калькулятор</a>
-                <p class="text-muted">Калькулятор для планирования производства нескольких продуктов.</p>
-            </div>
-
-                {% if user.is_superuser %}
-                    <div class="">
-                        <a href="{% url 'farmer:create_user' %}" class="btn btn-primary btn-custom">Создать пользователя</a>
+    <div class="col-md-12 col-lg-8">
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:production_departments_list' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'factory.png' %}" class="btn-image" alt="Производственные отделы">
+                    <div class="btn-content">
+                        <h5>Производственные отделы</h5>
+                        <p class="text-muted">Просмотр и управление производственными отделами.</p>
                     </div>
-                {% endif %}
-
-
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:products_list' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'meat.png' %}" class="btn-image" alt="Продукция">
+                    <div class="btn-content">
+                        <h5>Продукция</h5>
+                        <p class="text-muted">Просмотр и управление продуктами.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:raw_material_stock_list' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'stock.png' %}" class="btn-image" alt="Сырье на складе">
+                    <div class="btn-content">
+                        <h5>Сырье на складе</h5>
+                        <p class="text-muted">Просмотр и управление запасами сырья.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:stock_list' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'sklad_2749v1n2fdom_256.png' %}" class="btn-image" alt="Склады">
+                    <div class="btn-content">
+                        <h5>Склады</h5>
+                        <p class="text-muted">Просмотр и управление складами.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:recipes_list' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'recipe.png' %}" class="btn-image" alt="Рецепты">
+                    <div class="btn-content">
+                        <h5>Рецепты</h5>
+                        <p class="text-muted">Просмотр и управление рецептами продукции.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:production_plans_list' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'action-plan.png' %}" class="btn-image" alt="Производственные планы">
+                    <div class="btn-content">
+                        <h5>Производственные планы</h5>
+                        <p class="text-muted">Просмотр и управление производственными планами.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:orders_list' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'zayavka_993fmgnjtczn_256.png' %}" class="btn-image" alt="Заявки">
+                    <div class="btn-content">
+                        <h5>Заявки</h5>
+                        <p class="text-muted">Просмотр и управление заявками от менеджеров.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="{% url 'farmer:multi_product_production_plan' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'calculator.png' %}" class="btn-image" alt="Калькулятор">
+                    <div class="btn-content">
+                        <h5>Калькулятор</h5>
+                        <p class="text-muted">Калькулятор для планирования производства нескольких продуктов.</p>
+                    </div>
+                </a>
+            </div>
+            {% if user.is_superuser %}
+            <div class="col-12">
+                <a href="{% url 'farmer:create_user' %}" class="btn btn-primary btn-custom text-start">
+                    <img src="{% static 'add-photo.png' %}" class="btn-image" alt="Создать пользователя">
+                    <div class="btn-content">
+                        <h5>Создать пользователя</h5>
+                        <p class="text-muted">Создание нового пользователя.</p>
+                    </div>
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <style>
     .btn-custom {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
         background-color: #4CAF50;
         border-color: #4CAF50;
-        transition: background-color 0.3s, transform 0.3s; /* Плавное изменение цвета и эффекта */
-        margin-bottom: 10px; /* Расстояние между кнопками */
+        transition: background-color 0.3s, transform 0.3s;
+        margin-bottom: 10px;
+        padding: 15px;
     }
     .btn-custom:hover {
-        background-color: #45a049; /* Изменение цвета при наведении */
-        transform: scale(1.05); /* Легкое увеличение при наведении */
+        background-color: #45a049;
+        transform: scale(1.05);
+    }
+    .btn-image {
+        width: 50px;
+        height: 50px;
+        margin-right: 15px;
+    }
+    .btn-content h5 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+    .btn-content p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #fff;
     }
     .text-muted {
-        margin-top: -8px;
+        margin-top: 8px;
         margin-bottom: 15px;
-        font-size: 0.9rem; /* Размер шрифта для описания */
+    }
+    .btn-custom h5, .btn-custom p {
+        color: #fff;
     }
 </style>
 {% endblock %}
+
